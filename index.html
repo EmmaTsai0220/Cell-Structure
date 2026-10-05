@@ -25,7 +25,7 @@ svg.clk{cursor:crosshair;touch-action:manipulation}
 #ov{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}.mc{max-width:420px;width:100%;margin:0}
 #toast{position:fixed;left:50%;top:90px;transform:translateX(-50%);background:var(--ac);color:#fff;padding:6px 14px;border-radius:99px;opacity:0;transition:opacity .2s;z-index:30;pointer-events:none;font-weight:700}
 input{font:inherit;color:var(--tx);background:var(--card);border:2px solid var(--bd);border-radius:10px;padding:8px;width:100%;box-sizing:border-box}
-.rw{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd)}.rw:last-child{border:0}.rn{min-width:8.5em}.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{background:color-mix(in srgb,var(--ok) 18%,var(--card));border:1px solid var(--ok);border-radius:8px;padding:2px 8px;font-size:.9rem}
+.rw{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd)}.rw:last-child{border:0}.rn{min-width:8.5em}.boss{background:color-mix(in srgb,#d64545 14%,var(--card));border:2px solid #d64545;border-radius:10px;padding:8px}.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{background:color-mix(in srgb,var(--ok) 18%,var(--card));border:1px solid var(--ok);border-radius:8px;padding:2px 8px;font-size:.9rem}
 .lbr{display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--bd);font-size:.92rem}.lbr.me{font-weight:700;color:var(--ac)}.lbr span:nth-child(2){flex:1}
 @keyframes p{0%,100%{r:7}50%{r:13}}.pulse{animation:p 1.2s infinite}
 </style></head><body><main><div id="app"></div></main><div id="ov"></div><div id="toast"></div>
@@ -48,7 +48,7 @@ const L2=[["animal","nuc",160,170,-90,-70],["animal","mito",225,78,70,-30],["ani
 ["plant","wall",12,385,-60,10],["plant","chlo",75,295,-90,30],["plant","vac",150,250,110,-30],["plant","mito",180,300,-60,-50],["plant","cyto",335,140,40,45]];
 const TYPES=["動物細胞","植物細胞","兩者皆有"];
 const C=[{k:"dna",n:"遺傳物質（DNA）",f:"攜帶遺傳訊息，決定生物的特徵"},...["nuc","cyto","mem","wall","mito","chlo","vac"].map(k=>({k,n:S[k].n,f:S[k].f}))];
-const R=[{n:"細菌",e:"🦠",parts:["wall","mem","cyto","dna"],d:"細菌沒有細胞核，DNA直接分布在細胞質中，也沒有粒線體、葉綠體。"},
+const R=[{n:"細菌",e:"🦠",boss:1,parts:["wall","mem","cyto","dna"],d:"細菌沒有細胞核，DNA直接分布在細胞質中，也沒有粒線體、葉綠體。"},
 {n:"植物表皮細胞",e:"🌿",parts:["wall","mem","cyto","nuc","mito","vac"],d:"位於葉片表面，通常沒有葉綠體。"},
 {n:"植物保衛細胞",e:"🍃",parts:["wall","mem","cyto","nuc","mito","vac","chlo"],d:"圍成氣孔的細胞，含有葉綠體，能行光合作用。"},
 {n:"口腔皮膜細胞",e:"👄",parts:["mem","cyto","nuc","mito","vac"],d:"人體口腔內壁的細胞，沒有細胞壁和葉綠體。"}];
@@ -73,6 +73,10 @@ if(el){const rows=[...LB].sort((a,b)=>b.total-a.total).slice(0,10);el.innerHTML=
 t.innerHTML=`<small class="sub">本關前三名</small>`+(rows.map((d,i)=>`<div class="lbr${d.id===meId()?" me":""}"><span>${["🥇","🥈","🥉"][i]}</span><span>${who(d)}</span><span>${d["s"+n]} 分</span></div>`).join("")||'<small class="sub"> 還沒有人上榜</small>')})}
 function loadLB(){if(!API_URL)return;fetch(API_URL).then(r=>r.json()).then(d=>{LB=Array.isArray(d)?d:[];LBS="🟢 已更新（每 20 秒自動刷新）";drawLB()}).catch(()=>{LBS="排行榜讀取失敗，請檢查網路";drawLB()})}
 setInterval(()=>{if(!G.lv)loadLB()},20000);
+const near=(c,x,y)=>(c.c||[]).some(([a,b,r])=>Math.hypot(x-a,y-b)<=r);
+const hit=(cell,k,x,y)=>{const h=(H[cell]||{})[k];return !!h&&(near(h,x,y)||(!!h.g&&gin(h.g,x,y)))};
+const arrow=(x,y,dx,dy)=>{const tx=x+dx,ty=y+dy,L=Math.hypot(dx,dy),ux=dx/L,uy=dy/L,bx=x+ux*12,by=y+uy*12,px=-uy,py=ux;
+return `<line x1="${tx}" y1="${ty}" x2="${bx}" y2="${by}" stroke="#e5484d" stroke-width="5" stroke-linecap="round"/><polygon points="${x},${y} ${bx+px*9+ux*10},${by+py*9+uy*10} ${bx-px*9+ux*10},${by-py*9+uy*10}" fill="#e5484d"/><circle class="pulse" cx="${x}" cy="${y}" r="8" fill="none" stroke="#e5484d" stroke-width="3"/>`};
 /* ===== 共用：封面、血量、計分、暫停、商店 ===== */
 let LOGGED=false;
 function cover(){LOGGED?menu():login()}
@@ -90,7 +94,7 @@ function hud(){$("hl").textContent="❤️".repeat(G.lives)+"🖤".repeat(5-G.li
 const newQ=lim=>{G.qs=Date.now();G.lim=lim;G.hintUsed=false;G.frozen=false};
 setInterval(()=>{const t=$("tb");if(!t||!G.lv||G.paused||G.over||G.frozen)return;const r=Math.max(0,G.lim-(Date.now()-G.qs)/1000),p=r/G.lim;t.style.width=p*100+"%";t.style.background=p>.3?"var(--ac)":"var(--bad)";$("tl").textContent="⏱ "+Math.floor(r/60)+":"+String(Math.floor(r%60)).padStart(2,"0")},100);
 let tt;function toast(m){const e=$("toast");e.textContent=m;e.style.opacity=1;clearTimeout(tt);tt=setTimeout(()=>e.style.opacity=0,1500)}
-function award(base,tb){G.streak++;let cb=0,t=0;if(!G.hintUsed){cb=G.streak>=2?Math.min(10,(G.streak-1)*2):0;if((Date.now()-G.qs)/1000<=G.lim)t=tb}
+function award(base,tb,mu=1){G.streak++;let cb=0,t=0;if(!G.hintUsed){cb=mu*(G.streak>=2?Math.min(10,(G.streak-1)*2):0);if((Date.now()-G.qs)/1000<=G.lim)t=tb}
 const p=base+cb+t;G.score+=p;G.coins+=p;hud();toast("+"+p+(cb?"　🔥連擊+"+cb:"")+(t?"　⏱+"+t:""))}
 function wrong(){G.streak=0;G.lives--;hud();if(G.lives<=0)over()}
 function over(){G.over=true;saveBest();$("body").innerHTML=`<div class="card lock"><div class="big">💔</div><h2>生命用完了！</h2><p>本關得分：${G.score}</p><button class="nx" id="r1">重新挑戰這一關</button><button class="sm" id="r2">回主畫面</button></div>`;$("r1").onclick=()=>begin(G.lv);$("r2").onclick=cover}
@@ -132,10 +136,10 @@ fb.textContent=card.dataset.w?"這才是正確答案。":"答對了！";fb.style
 document.querySelector("#body .nx").onclick=()=>{G.i++;l2()}}
 /* ===== 第三關：細胞組裝師 ===== */
 function l3(){const found=new Set(),sel=new Set();let fails=0;newQ(60);const nm=k=>k==="dna"?"DNA":S[k].n;
-$("body").innerHTML=`<div class="card"><p class="q">🧪 挑選下方卡片，按下「組裝」，看看能組成哪一種細胞！</p><p class="sub" style="margin:0">目標：組裝出 4 種細胞。成功 +30 分，每種細胞 60 秒內組出有額外加分。</p></div>
+$("body").innerHTML=`<div class="card"><p class="q">🧪 挑選下方卡片，按下「組裝」，看看能組成哪一種細胞！</p><p class="sub" style="margin:0">目標：組裝出 4 種細胞。成功 +30 分，每種細胞 60 秒內組出有額外加分。其中 🦠 細菌是魔王題，分數兩倍！</p></div>
 <div class="card" id="slots"></div><div class="card"><div class="opts" id="cards">${C.map(c=>`<button data-k="${c.k}"><b>${c.n}</b><br><small>${c.f}</small></button>`).join("")}</div></div>
 <div class="two"><button class="nx" id="mk">⚙️ 組裝</button><button class="sm" id="cl" style="margin:0">清除選取</button></div><div class="card" id="res" style="margin-top:12px"><span class="sub">結果會顯示在這裡</span></div><button class="nx" id="fin" style="display:none">完成挑戰 ➜</button>`;
-const res=h=>$("res").innerHTML=h,slots=()=>$("slots").innerHTML=R.map(r=>`<div class="rw"><b class="rn">${r.e} ${r.n}</b><div class="chips">${found.has(r.n)?r.parts.map(p=>`<span class="chip">${nm(p)}</span>`).join(""):'<span class="sub" style="margin:0">❓ 尚未組裝</span>'}</div></div>`).join("");slots();
+const res=h=>$("res").innerHTML=h,slots=()=>$("slots").innerHTML=R.map(r=>`<div class="rw${r.boss?" boss":""}"><b class="rn">${r.e} ${r.n}${r.boss?`<br><span class="tag" style="background:#d64545">👹 魔王題・分數 ×2</span>`:""}</b><div class="chips">${found.has(r.n)?r.parts.map(p=>`<span class="chip">${nm(p)}</span>`).join(""):'<span class="sub" style="margin:0">❓ 尚未組裝</span>'}</div></div>`).join("");slots();
 const cards=document.querySelectorAll("#cards button");
 cards.forEach(b=>b.onclick=()=>{if(G.frozen&&found.size<R.length)newQ(60);const k=b.dataset.k;sel.has(k)?sel.delete(k):sel.add(k);b.classList.toggle("ok",sel.has(k))});
 $("cl").onclick=()=>{sel.clear();cards.forEach(b=>b.classList.remove("ok"))};
@@ -144,7 +148,7 @@ $("mk").onclick=()=>{if(G.over)return;if(!sel.size)return res("請先選幾張�
 const s=new Set(sel),both=s.has("nuc")&&s.has("dna");if(s.has("nuc"))s.delete("dna");
 const note=both?"<br><small>細胞核裡面本來就有 DNA，所以不用另外放 DNA 卡片。</small>":"";
 const m=R.find(r=>r.parts.length===s.size&&r.parts.every(p=>s.has(p)));
-if(m){if(found.has(m.n))return res(`你已經組裝過「${m.n}」囉！試試其他組合。`+note);found.add(m.n);award(30,15);G.frozen=true;res(`🎉 組裝成功：${m.e} <b>${m.n}</b><br>${m.d}`+note);slots();if(found.size===R.length)$("fin").style.display="block"}
+if(m){if(found.has(m.n))return res(`你已經組裝過「${m.n}」囉！試試其他組合。`+note);found.add(m.n);m.boss?award(60,30,2):award(30,15);G.frozen=true;res(`🎉 組裝成功：${m.e} <b>${m.n}</b><br>${m.d}`+note);slots();if(found.size===R.length)$("fin").style.display="block"}
 else{fails++;wrong();if(G.over)return;let t="這個組合還不能組成指定的細胞，再想想看！（−1 ❤️）";
 if(fails>=3){const c=R.map(r=>({r,mi:r.parts.filter(p=>!s.has(p)).length,ex:[...s].filter(p=>!r.parts.includes(p)).length})).sort((x,y)=>x.mi+x.ex-y.mi-y.ex)[0];t+=`<br><small>提示：和「${c.r.n}」比，少了 ${c.mi} 張、多了 ${c.ex} 張卡片。</small>`}res(t+note)}};
 $("fin").onclick=finish}

@@ -59,22 +59,26 @@ const LV=[{i:"🔍",n:"找構造",d:"看名稱，在圖上點出位置",run:()=>
 const ITEMS=[["💡 提示卡","答題時使用，縮小答案範圍（該題不再有加分）",20,()=>G.hints++],["💗 小愛心","補 1 顆愛心",30,()=>G.lives=Math.min(5,G.lives+1)],["💖 大愛心","補 2 顆愛心",50,()=>G.lives=Math.min(5,G.lives+2)]];
 const $=id=>document.getElementById(id),app=$("app"),sh=a=>[...a].sort(()=>Math.random()-.5),G={lv:0};
 let BEST={};try{BEST=JSON.parse(localStorage.getItem("cellBest")||"{}")}catch(e){}
+let BESTT={};try{BESTT=JSON.parse(localStorage.getItem("cellBestT")||"{}")}catch(e){}
+const fmtT=t=>t==null||t===""?"—":t<60?Number(t).toFixed(1)+" 秒":Math.floor(t/60)+" 分 "+(t%60).toFixed(1)+" 秒";
+const tv=t=>t==null||t===""?1e9:Number(t);
+const byTotal=(a,b)=>b.total-a.total||tv(a.time)-tv(b.time);
 let PL={};try{PL=JSON.parse(localStorage.getItem("cellPl")||"{}")}catch(e){}
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const API_URL="https://script.google.com/macros/s/AKfycbxSeCxamQakZAf5nVH2pPz4xGEBQV7iAqbK0avwO6QYw0XdviWEHuEW8lzC1LG-2FGPZA/exec";/* ← 貼上 Apps Script 網頁應用程式網址（結尾是 /exec） */
 let LB=[],LBS=API_URL?"連線中…":"尚未設定排行榜（成績只記在本機）",LBF="";
-function pushLB(){if(!API_URL||!PL.name)return;fetch(API_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({school:PL.school,cls:PL.cls,seat:PL.seat,name:PL.name,level:G.lv,score:G.score})}).then(()=>setTimeout(loadLB,2000)).catch(()=>{})}
-const saveBest=()=>{BEST[G.lv]=Math.max(BEST[G.lv]||0,G.score);try{localStorage.setItem("cellBest",JSON.stringify(BEST))}catch(e){}pushLB()};
+function pushLB(){if(!API_URL||!PL.name)return;fetch(API_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({school:PL.school,cls:PL.cls,seat:PL.seat,name:PL.name,level:G.lv,score:G.score,time:G.time})}).then(()=>setTimeout(loadLB,2000)).catch(()=>{})}
+const saveBest=()=>{const n=G.lv,b=BEST[n]||0,bt=BESTT[n];if(G.score>b||(G.score===b&&(bt==null||G.time<bt))){BEST[n]=G.score;BESTT[n]=G.time}try{localStorage.setItem("cellBest",JSON.stringify(BEST));localStorage.setItem("cellBestT",JSON.stringify(BESTT))}catch(e){}pushLB()};
 const norm=x=>String(x).trim().replace(/^0+(?=\d)/,"");
 const meId=()=>[PL.school,norm(PL.cls),norm(PL.seat)].join("|");
 const who=d=>`${esc(d.school)} ${esc(d.cls)}班 ${esc(d.seat)}號 ${esc(d.nm)}`;
-function fillM(){const e=$("lbm");if(!e)return;const rows=[...LB].sort((a,b)=>b.total-a.total),me=rows.findIndex(d=>d.id===meId());
-e.innerHTML=`<small class="sub">${LBS}</small>`+(rows.slice(0,10).map((d,i)=>`<div class="lbr${d.id===meId()?" me":""}"><span>${["🥇","🥈","🥉"][i]||i+1}</span><span>${who(d)}</span><span>${d.total} 分</span></div>`).join("")||'<small class="sub">還沒有人上榜</small>')+(me>=10?`<div class="lbr me"><span>${me+1}</span><span>你目前的名次</span><span>${rows[me].total} 分</span></div>`:"")}
+function fillM(){const e=$("lbm");if(!e)return;const rows=[...LB].sort(byTotal),me=rows.findIndex(d=>d.id===meId());
+e.innerHTML=`<small class="sub">${LBS}</small><br><small class="sub">⏱ 同分時，總時間越短排名越前面</small>`+(rows.slice(0,10).map((d,i)=>`<div class="lbr${d.id===meId()?" me":""}"><span>${["🥇","🥈","🥉"][i]||i+1}</span><span>${who(d)}</span><span>${d.total} 分<br><small>${fmtT(d.time)}</small></span></div>`).join("")||'<small class="sub">還沒有人上榜</small>')+(me>=10?`<div class="lbr me"><span>${me+1}</span><span>你目前的名次</span><span>${rows[me].total} 分<br><small>${fmtT(rows[me].time)}</small></span></div>`:"")}
 function showLB(){modal('<h3>🏆 總分排行榜</h3><div id="lbm"></div><button class="nx" id="m1" style="margin-top:10px">關閉</button>');$("m1").onclick=closeM;fillM();loadLB()}
 function drawLB(){fillM();if(G.lv)return;const el=$("lb");
-if(el){const rows=[...LB].sort((a,b)=>b.total-a.total).slice(0,10);el.innerHTML=`<b>🏆 即時排行榜（總分）</b><br><small class="sub">${LBS}</small>${rows.map((d,i)=>`<div class="lbr${d.id===meId()?" me":""}"><span>${["🥇","🥈","🥉"][i]||i+1}</span><span>${who(d)}</span><span>${d.total} 分</span></div>`).join("")||'<small class="sub">還沒有人上榜</small>'}`}
-[1,2,3].forEach(n=>{const t=$("t"+n);if(!t)return;const rows=LB.filter(d=>d["s"+n]>0).sort((a,b)=>b["s"+n]-a["s"+n]).slice(0,3);
-t.innerHTML=`<small class="sub">本關前三名</small>`+(rows.map((d,i)=>`<div class="lbr${d.id===meId()?" me":""}"><span>${["🥇","🥈","🥉"][i]}</span><span>${who(d)}</span><span>${d["s"+n]} 分</span></div>`).join("")||'<small class="sub"> 還沒有人上榜</small>')})}
+if(el){const rows=[...LB].sort(byTotal).slice(0,10);el.innerHTML=`<b>🏆 即時排行榜（總分，同分比時間）</b><br><small class="sub">${LBS}</small>${rows.map((d,i)=>`<div class="lbr${d.id===meId()?" me":""}"><span>${["🥇","🥈","🥉"][i]||i+1}</span><span>${who(d)}</span><span>${d.total} 分<br><small>${fmtT(d.time)}</small></span></div>`).join("")||'<small class="sub">還沒有人上榜</small>'}`}
+[1,2,3].forEach(n=>{const t=$("t"+n);if(!t)return;const rows=LB.filter(d=>d["s"+n]>0).sort((a,b)=>b["s"+n]-a["s"+n]||tv(a["t"+n])-tv(b["t"+n])).slice(0,3);
+t.innerHTML=`<small class="sub">本關前三名</small>`+(rows.map((d,i)=>`<div class="lbr${d.id===meId()?" me":""}"><span>${["🥇","🥈","🥉"][i]}</span><span>${who(d)}</span><span>${d["s"+n]} 分<br><small>${fmtT(d["t"+n])}</small></span></div>`).join("")||'<small class="sub"> 還沒有人上榜</small>')})}
 function loadLB(){if(!API_URL)return;fetch(API_URL).then(r=>r.json()).then(d=>{LB=Array.isArray(d)?d:[];LBS="🟢 已更新（每 20 秒自動刷新）";drawLB()}).catch(()=>{LBS="排行榜讀取失敗，請檢查網路";drawLB()})}
 setInterval(()=>{if(!G.lv)loadLB()},20000);
 const near=(c,x,y)=>(c.c||[]).some(([a,b,r])=>Math.hypot(x-a,y-b)<=r);
@@ -88,10 +92,10 @@ function login(){G.lv=0;app.innerHTML=`<div class="card lock"><div class="big">�
 <div class="card"><b>👤 同學資料</b><div style="display:grid;gap:8px;margin-top:6px"><input id="pk" placeholder="學校 例：文山國中" value="${esc(PL.school)}"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input id="pc" placeholder="班級 例：701" value="${esc(PL.cls)}"><input id="ps" placeholder="座號" inputmode="numeric" value="${esc(PL.seat)}"></div><input id="pn" placeholder="姓名" value="${esc(PL.name)}"></div><button class="nx" id="in" style="margin-top:10px">進入遊戲 ➜</button><small class="sub">排行榜只會顯示你的姓氏，例如「蔡同學」。</small></div><div class="card" id="lb"></div>`;
 $("in").onclick=()=>{const v=id=>$(id).value.trim();if(!v("pk")||!v("pc")||!v("ps")||!v("pn"))return toast("請填寫學校、班級、座號、姓名");PL={school:v("pk"),cls:v("pc"),seat:v("ps"),name:v("pn")};try{localStorage.setItem("cellPl",JSON.stringify(PL))}catch(e){}LOGGED=true;menu()};drawLB();loadLB()}
 function menu(){G.lv=0;app.innerHTML=`<div class="card lock"><div class="big">🔬</div><h1>選擇關卡</h1><p class="sub">👤 ${esc(PL.school)} ${esc(PL.cls)}班 ${esc(PL.seat)}號 ${esc(PL.name.charAt(0))}同學　<button class="sm" id="chg" style="width:auto;display:inline-block">更換資料</button></p></div>
-${LV.map((l,i)=>`<div class="card"><div class="lvc"><div><b>${l.i} 第${i+1}關：${l.n}</b><br><small>${l.d}</small><br><small>🏅 我的最高分：${BEST[i+1]||0}</small></div><button class="nx go" data-i="${i+1}">開始</button></div><div id="t${i+1}" style="margin-top:8px"></div></div>`).join("")}
-<div class="card"><b>遊戲規則</b><br><small>❤️ 每關 5 條命，答錯扣 1 顆，歸零就失敗<br>✅ 答對 +10 分；🔥 連續答對有連擊加分；⏱ 時間內答對有額外加分<br>🪙 得分同時是金幣，可到 🛒 商店買提示卡、小愛心（+1 命）、大愛心（+2 命）<br>🏠 中途回主畫面，這一關的分數會歸零</small></div><button id="fab">🏆 排行榜</button>`;
+${LV.map((l,i)=>`<div class="card"><div class="lvc"><div><b>${l.i} 第${i+1}關：${l.n}</b><br><small>${l.d}</small><br><small>🏅 我的最佳紀錄：${BEST[i+1]||0} 分（${fmtT(BESTT[i+1])}）</small></div><button class="nx go" data-i="${i+1}">開始</button></div><div id="t${i+1}" style="margin-top:8px"></div></div>`).join("")}
+<div class="card"><b>遊戲規則</b><br><small>❤️ 每關 5 條命，答錯扣 1 顆，歸零就失敗<br>✅ 答對 +10 分；🔥 連續答對有連擊加分；⏱ 時間內答對有額外加分<br>🪙 得分同時是金幣，可到 🛒 商店買提示卡、小愛心（+1 命）、大愛心（+2 命）<br>🏠 中途回主畫面，這一關的分數會歸零<br>⏱ 排行榜同分時，通關時間越短排名越前面（暫停、開商店的時間不計；未通關的成績不上榜）</small></div><button id="fab">🏆 排行榜</button>`;
 $("fab").onclick=showLB;$("chg").onclick=()=>{LOGGED=false;login()};app.querySelectorAll(".go").forEach(b=>b.onclick=()=>begin(+b.dataset.i));drawLB();loadLB()}
-function begin(n){Object.assign(G,{lv:n,score:0,coins:0,lives:5,hints:0,streak:0,over:false,paused:false,hintUsed:false,frozen:false,hintFn:null,qs:Date.now(),lim:15});
+function begin(n){Object.assign(G,{lv:n,t0:Date.now(),pt:0,time:null,score:0,coins:0,lives:5,hints:0,streak:0,over:false,paused:false,hintUsed:false,frozen:false,hintFn:null,qs:Date.now(),lim:15});
 app.innerHTML=`<div class="card hud"><div class="hr"><span id="hl"></span><span id="hs"></span><span id="hc"></span><span id="hk"></span><span id="tl"></span></div><div class="hr"><button class="sm" id="bp">⏸ 暫停</button><button class="sm" id="bs">🛒 商店</button><button class="sm" id="bh"></button><button class="sm" id="bm">🏠 主畫面</button></div><div class="tbar"><i id="tb"></i></div></div><div id="body"></div>`;
 $("bp").onclick=pauseM;$("bs").onclick=shopM;$("bh").onclick=useHint;$("bm").onclick=homeM;hud();LV[n-1].run()}
 function hud(){$("hl").textContent="❤️".repeat(G.lives)+"🖤".repeat(5-G.lives);$("hs").textContent="⭐"+G.score;$("hc").textContent="🪙"+G.coins;$("hk").textContent=G.streak>=2?"🔥"+G.streak+" 連擊":"";$("bh").textContent="💡×"+G.hints}
@@ -101,12 +105,12 @@ let tt;function toast(m){const e=$("toast");e.textContent=m;e.style.opacity=1;cl
 function award(base,tb,mu=1){G.streak++;let cb=0,t=0;if(!G.hintUsed){cb=mu*(G.streak>=2?Math.min(10,(G.streak-1)*2):0);if((Date.now()-G.qs)/1000<=G.lim)t=tb}
 const p=base+cb+t;G.score+=p;G.coins+=p;hud();toast("+"+p+(cb?"　🔥連擊+"+cb:"")+(t?"　⏱+"+t:""))}
 function wrong(){G.streak=0;G.lives--;hud();if(G.lives<=0)over()}
-function over(){G.over=true;saveBest();$("body").innerHTML=`<div class="card lock"><div class="big">💔</div><h2>生命用完了！</h2><p>本關得分：${G.score}</p><button class="nx" id="r1">重新挑戰這一關</button><button class="sm" id="r2">回主畫面</button></div>`;$("r1").onclick=()=>begin(G.lv);$("r2").onclick=cover}
-function finish(){G.over=true;const b=G.lives===5?20:0;G.score+=b;hud();saveBest();const n=G.lv;
-$("body").innerHTML=`<div class="card lock"><div class="big">🎉</div><h2>第${n}關通關！</h2><p>本關得分：${G.score}${b?"（含滿心通關 +20）":""}<br>🏅 最高分：${BEST[n]}</p>${n<3?`<button class="nx" id="r0">前往第${n+1}關 ➜</button>`:""}<button class="sm" id="r1">再玩一次</button><button class="sm" id="r2">回主畫面</button></div>`;
+function over(){G.over=true;$("body").innerHTML=`<div class="card lock"><div class="big">💔</div><h2>生命用完了！</h2><p>本關得分：${G.score}<br><small>未通關的成績不會列入排行榜</small></p><button class="nx" id="r1">重新挑戰這一關</button><button class="sm" id="r2">回主畫面</button></div>`;$("r1").onclick=()=>begin(G.lv);$("r2").onclick=cover}
+function finish(){G.over=true;const b=G.lives===5?20:0;G.score+=b;G.time=Math.round((Date.now()-G.t0-G.pt)/100)/10;hud();saveBest();const n=G.lv;
+$("body").innerHTML=`<div class="card lock"><div class="big">🎉</div><h2>第${n}關通關！</h2><p>本關得分：${G.score}${b?"（含滿心通關 +20）":""}<br>⏱ 通關時間：${fmtT(G.time)}<br>🏅 最佳紀錄：${BEST[n]} 分（${fmtT(BESTT[n])}）</p>${n<3?`<button class="nx" id="r0">前往第${n+1}關 ➜</button>`:""}<button class="sm" id="r1">再玩一次</button><button class="sm" id="r2">回主畫面</button></div>`;
 if(n<3)$("r0").onclick=()=>begin(n+1);$("r1").onclick=()=>begin(n);$("r2").onclick=cover}
 function modal(h){if(G.lv&&!G.paused&&!G.over){G.paused=true;G.pa=Date.now()}$("ov").innerHTML=`<div class="card mc">${h}</div>`;$("ov").style.display="flex"}
-function closeM(){$("ov").style.display="none";if(G.paused){G.qs+=Date.now()-G.pa;G.paused=false}}
+function closeM(){$("ov").style.display="none";if(G.paused){const d=Date.now()-G.pa;G.qs+=d;G.pt+=d;G.paused=false}}
 function pauseM(){modal(`<h2 style="text-align:center">⏸ 暫停中</h2><button class="nx" id="m1">繼續遊戲</button><button class="sm" id="m2">🏠 回主畫面</button>`);$("m1").onclick=closeM;$("m2").onclick=homeM}
 function homeM(){if(G.over)return cover();modal(`<h3>回主畫面？</h3><p>回到主畫面的話，這一關目前的分數會歸零，確定要離開嗎？</p><button class="nx" id="m1">繼續遊戲</button><button class="sm" id="m2">確定離開</button>`);$("m1").onclick=closeM;$("m2").onclick=()=>{closeM();cover()}}
 function shopM(){modal(`<h3>🛒 商店　<small>🪙${G.coins}　${"❤️".repeat(G.lives)}</small></h3>${ITEMS.map((it,i)=>`<div class="card lvc" style="margin:6px 0"><div><b>${it[0]}</b><br><small>${it[1]}</small></div><button class="sm buy" data-i="${i}" style="width:auto" ${G.coins<it[2]||(i>0&&G.lives>=5)?"disabled":""}>🪙${it[2]}</button></div>`).join("")}<button class="nx" id="m1">關閉</button>`);
